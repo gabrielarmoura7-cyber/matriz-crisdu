@@ -449,7 +449,7 @@
       <div class="matriz-row">
         <div class="matriz-label">
           <div class="name">Centro de custo</div>
-          <div class="hint"></div>
+          <div class="hint">opcional</div>
         </div>
         <div class="matriz-field">
           <input type="text" id="cx-cc" list="dl-cc" autocomplete="off" placeholder="comece a digitar para buscar…">
@@ -459,7 +459,7 @@
       <div class="matriz-row">
         <div class="matriz-label">
           <div class="name">Conta</div>
-          <div class="hint"></div>
+          <div class="hint">opcional</div>
         </div>
         <div class="matriz-field">
           <input type="text" id="cx-conta" list="dl-contas" autocomplete="off" placeholder="comece a digitar para buscar…">
@@ -795,10 +795,11 @@ async function enviarSolicitacao() {
     conta: $('cx-conta').value.trim(),
     subconta: $('cx-subconta').value.trim()
   };
-  const rotulos = { unidadeNegocio: 'Unidade de negócio', centroCusto: 'Centro de custo', conta: 'Conta', subconta: 'Subconta' };
-  const faltando = Object.entries(campos).filter(([k,v]) => !v).map(([k]) => rotulos[k]);
+  // Centro de Custo e Conta são OPCIONAIS. Obrigatórios: Unidade de negócio e Subconta.
+  const rotulos = { unidadeNegocio: 'Unidade de negócio', subconta: 'Subconta' };
+  const faltando = Object.entries(rotulos).filter(([k]) => !campos[k]).map(([,nome]) => nome);
   if (faltando.length) {
-    $('send-feedback').innerHTML = `<div class="alert alert-red"><strong>⚠</strong><div>Preencha todos os campos da classificação antes de enviar (${faltando.join(', ')}).</div></div>`;
+    $('send-feedback').innerHTML = `<div class="alert alert-red"><strong>⚠</strong><div>Preencha os campos obrigatórios da classificação: ${faltando.join(', ')}. (Centro de Custo e Conta são opcionais.)</div></div>`;
     return;
   }
   const original = editandoId ? cacheSolicitacoes.find(x => x.id === editandoId) : null;
