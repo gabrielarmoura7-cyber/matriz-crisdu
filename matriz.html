@@ -2661,23 +2661,22 @@ function switchView(v) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await carregarBaseDinamica();
+  // PRIMEIRO: ajusta as abas conforme o perfil (não depende do servidor),
+  // antes de qualquer await, para nunca ficarem presas esperando a base.
+  if (SOLICITANTE_ONLY) {
+    ['nav-dashboard', 'nav-politicas'].forEach(id => { const el = $(id); if (el) el.style.display = 'none'; });
+  } else {
+    ['nav-solicitar', 'nav-minhas'].forEach(id => { const el = $(id); if (el) el.remove(); });
+    switchView('dashboard');
+  }
+
+  try { await carregarBaseDinamica(); } catch (e) {}
   fillDatalists();
   setupDropzone();
   loadPerfil();
   $('solicitante').addEventListener('input', savePerfil);
   $('solicitante-area').addEventListener('input', savePerfil);
   applyEnvNotices();
-  if (SOLICITANTE_ONLY) {
-    // Colaborador: vê apenas Nova solicitação e Minhas solicitações.
-    // Políticas e Dashboard ficam bloqueados.
-    ['nav-dashboard', 'nav-politicas'].forEach(id => { const el = $(id); if (el) el.style.display = 'none'; });
-  } else {
-    // Gestão: vê apenas Dashboard e Políticas. As abas de colaborador saem.
-    ['nav-solicitar', 'nav-minhas'].forEach(id => { const el = $(id); if (el) el.style.display = 'none'; });
-    // Abre direto no Dashboard, já que "Nova solicitação" não é a tela da gestão.
-    switchView('dashboard');
-  }
   loadSolicitacoes(true);
   setInterval(() => {
     if (!getSyncUrl()) return;
