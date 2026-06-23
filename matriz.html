@@ -627,7 +627,23 @@ async function carregarBaseDinamica() {
     const r = await dataStore().get(BASE_KEY);
     if (r && r.value) {
       const nova = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
-      if (nova && Array.isArray(nova.unidades) && Array.isArray(nova.contas)) { BASE = nova; return true; }
+      // Só usa a base do servidor se ela vier com CONTEÚDO REAL.
+      // Cada lista só substitui a embutida se tiver itens; senão mantém a embutida.
+      // Isso evita que uma base vazia/incompleta no servidor zere as listas.
+      if (nova && typeof nova === 'object') {
+        const temUnidades = Array.isArray(nova.unidades) && nova.unidades.length > 0;
+        const temContas   = Array.isArray(nova.contas) && nova.contas.length > 0;
+        const temCcCent    = Array.isArray(nova.ccCentral) && nova.ccCentral.length > 0;
+        const temCcLoc     = Array.isArray(nova.ccLocal) && nova.ccLocal.length > 0;
+        const base = (typeof BASE_EMBUTIDA !== 'undefined') ? BASE_EMBUTIDA : BASE;
+        BASE = {
+          unidades:  temUnidades ? nova.unidades  : base.unidades,
+          contas:    temContas   ? nova.contas    : base.contas,
+          ccCentral: temCcCent   ? nova.ccCentral : base.ccCentral,
+          ccLocal:   temCcLoc    ? nova.ccLocal   : base.ccLocal
+        };
+        return (temUnidades || temContas || temCcCent || temCcLoc);
+      }
     }
   } catch (e) {}
   return false;

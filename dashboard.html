@@ -644,6 +644,11 @@
 
       <div id="base-feedback" style="margin-top:14px"></div>
       <div id="base-preview"></div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line-soft)">
+        <div style="font-size:12px;color:var(--ink-faint);margin-bottom:8px">Se as listas zerarem ou algo der errado com a base, volte para a base original completa do sistema:</div>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);font-size:12px" onclick="restaurarBaseOriginal()">↺ Restaurar base original</button>
+      </div>
     </div>
   </div>
 </div>
@@ -678,9 +683,22 @@ async function carregarBaseDinamica() {
     const r = await dataStore().get(BASE_KEY);
     if (r && r.value) {
       const nova = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
-      if (nova && Array.isArray(nova.unidades) && Array.isArray(nova.contas)) {
-        BASE = nova;
-        return true;
+      // Só usa a base do servidor se vier com CONTEÚDO REAL. Cada lista só
+      // substitui a embutida se tiver itens; senão mantém a embutida.
+      // Evita que uma base vazia/incompleta no servidor zere as listas.
+      if (nova && typeof nova === 'object') {
+        const temUnidades = Array.isArray(nova.unidades) && nova.unidades.length > 0;
+        const temContas   = Array.isArray(nova.contas) && nova.contas.length > 0;
+        const temCcCent    = Array.isArray(nova.ccCentral) && nova.ccCentral.length > 0;
+        const temCcLoc     = Array.isArray(nova.ccLocal) && nova.ccLocal.length > 0;
+        const base = (typeof BASE_EMBUTIDA !== 'undefined') ? BASE_EMBUTIDA : BASE;
+        BASE = {
+          unidades:  temUnidades ? nova.unidades  : base.unidades,
+          contas:    temContas   ? nova.contas    : base.contas,
+          ccCentral: temCcCent   ? nova.ccCentral : base.ccCentral,
+          ccLocal:   temCcLoc    ? nova.ccLocal   : base.ccLocal
+        };
+        return (temUnidades || temContas || temCcCent || temCcLoc);
       }
     }
   } catch (e) { /* mantém base embutida */ }
@@ -787,6 +805,22 @@ async function parsearBaseDoArquivo(file) {
 }
 
 // Abre o modal da ferramenta de base
+// Restaura a base original embutida: apaga a base do servidor, voltando todos
+// os links a usar a base completa que vem dentro do sistema.
+async function restaurarBaseOriginal() {
+  if (!confirm('Isto vai apagar a base do servidor e voltar todos os links a usar a base original completa do sistema. Continuar?')) return;
+  $('base-feedback').innerHTML = '<div style="font-size:13px;color:var(--ink-faint)">Restaurando a base original…</div>';
+  try {
+    await dataStore().delete(BASE_KEY, true);
+    if (typeof BASE_EMBUTIDA !== 'undefined') BASE = JSON.parse(JSON.stringify(BASE_EMBUTIDA));
+    fillDatalists();
+    $('base-feedback').innerHTML = '<div class="alert alert-green"><strong>✓</strong><div>Base original restaurada! Todos os links voltam a usar a base completa (' + BASE.unidades.length + ' unidades, ' + BASE.contas.length + ' contas). Peça para a equipe recarregar a página.</div></div>';
+    $('base-preview').innerHTML = '';
+  } catch (e) {
+    $('base-feedback').innerHTML = '<div class="alert alert-red"><strong>⚠</strong><div>Não consegui restaurar: ' + (e.message || 'erro') + '</div></div>';
+  }
+}
+
 function abrirFerramentaBase() {
   const m = $('modal-base');
   if (m) { m.style.display = 'flex'; $('base-feedback').innerHTML = ''; $('base-preview').innerHTML = ''; }
@@ -840,6 +874,14 @@ async function onArquivoBase(input) {
 
 async function confirmarBase() {
   if (!_basePendente) return;
+  // Trava de segurança: nunca salvar uma base totalmente vazia no servidor
+  // (isso zeraria as listas de todos os colaboradores).
+  const totalItens = (_basePendente.unidades?.length || 0) + (_basePendente.contas?.length || 0)
+                   + (_basePendente.ccCentral?.length || 0) + (_basePendente.ccLocal?.length || 0);
+  if (totalItens === 0) {
+    $('base-feedback').innerHTML = '<div class="alert alert-red"><strong>⚠</strong><div>A base lida está vazia — não vou salvar para não zerar as listas. Confira o arquivo e tente de novo.</div></div>';
+    return;
+  }
   if (!getSyncUrl() && !IS_CLAUDE) {
     $('base-feedback').innerHTML = '<div class="alert alert-red"><strong>⚠</strong><div>O servidor central não está configurado neste link, então a base não pode ser salva para todos. Use o link com a configuração do servidor.</div></div>';
     return;

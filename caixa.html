@@ -601,13 +601,23 @@ function dataStore() { return (!IS_CLAUDE && getSyncUrl()) ? remoteStore : store
    A base enviada pelo dashboard fica salva no storage central
    (chave crisdu:base) e é lida por este sistema na abertura.
    ============================================================ */
-const BASE_EMBUTIDA = BASE;
+const BASE_EMBUTIDA = JSON.parse(JSON.stringify(BASE));
 const BASE_KEY = 'crisdu:base';
 function aplicarBase(obj) {
   if (!obj || typeof obj !== 'object') return false;
-  const ok = ['ccCentral','ccLocal','unidades','contas'].every(k => Array.isArray(obj[k]));
-  if (!ok) return false;
-  BASE = obj;
+  // Cada lista só substitui a embutida se vier com itens; senão mantém a embutida.
+  // Evita que uma base vazia/incompleta no servidor zere as listas dos colaboradores.
+  const temUnidades = Array.isArray(obj.unidades) && obj.unidades.length > 0;
+  const temContas   = Array.isArray(obj.contas) && obj.contas.length > 0;
+  const temCcCent    = Array.isArray(obj.ccCentral) && obj.ccCentral.length > 0;
+  const temCcLoc     = Array.isArray(obj.ccLocal) && obj.ccLocal.length > 0;
+  if (!temUnidades && !temContas && !temCcCent && !temCcLoc) return false;
+  BASE = {
+    unidades:  temUnidades ? obj.unidades  : BASE_EMBUTIDA.unidades,
+    contas:    temContas   ? obj.contas    : BASE_EMBUTIDA.contas,
+    ccCentral: temCcCent   ? obj.ccCentral : BASE_EMBUTIDA.ccCentral,
+    ccLocal:   temCcLoc    ? obj.ccLocal   : BASE_EMBUTIDA.ccLocal
+  };
   return true;
 }
 async function carregarBaseDinamica() {
